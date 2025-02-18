@@ -1,0 +1,38 @@
+FROM python:3.12-slim-bookworm
+
+# Set Playwright to install browsers in /ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Install minimal system dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    wget \
+    gnupg \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir playwright
+
+# Install browser dependencies and Chromium
+RUN playwright install-deps
+RUN playwright install chromium
+
+# Correct symlink to Chromium in the specified Playwright path
+RUN mkdir -p /opt/google/chrome && \
+    ln -s /ms-playwright/chromium-*/chrome-linux*/chrome /opt/google/chrome/chrome
+
+# Copy application code 
+COPY ./app/crawler_service.py /app/
+COPY ./app/models /app/models/
+COPY ./app/services /app/services/
+COPY ./app/config.py /app/
+
+# Add debugging statement
+RUN ls -la /app
+
+CMD ["python", "crawler_service.py"]

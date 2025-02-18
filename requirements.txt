@@ -1,0 +1,30 @@
+# Core dependencies
+crawl4ai==0.4.243  
+beautifulsoup4==4.13.0
+requests==2.32.3
+supabase==2.7.4
+sentence-transformers==3.0.1
+torch>=2.2.0
+transformers>=4.37.0
+psutil==6.1.1
+python-dotenv==1.0.1
+aiohttp==3.10.5
+streamlit==1.38.0
+pydantic-ai==0.0.24
+playwright==1.49.0
+
+# Additional utilities
+numpy==1.26.4
+pandas==2.2.2
+pydantic==2.10.0  # For data validation
+tiktoken==0.7.0  # For token counting
+tqdm==4.66.5     # For progress bars
+loguru==0.7.2    # Better logging
+tenacity==8.3.0  # For retries
+httpx==0.27.2    # Modern HTTP client
+PyYAML==6.0.2    # For configuration
+
+# Optional but recommended for better performance
+ujson==5.9.0     # Faster JSON processing
+orjson==3.9.13   # Even faster JSON processing
+aiofiles==24.1.0 # Async file operations

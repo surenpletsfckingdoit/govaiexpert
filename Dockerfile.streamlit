@@ -1,0 +1,33 @@
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create necessary directories and __init__.py files
+RUN mkdir -p /app/web /app/models /app/services && \
+    touch /app/__init__.py /app/web/__init__.py /app/models/__init__.py /app/services/__init__.py
+
+
+# Copy application code
+COPY ./app .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Run the application
+CMD ["streamlit", "run", "web/streamlit_app.py", "--server.address", "0.0.0.0"]

@@ -1,0 +1,123 @@
+services:
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ollama/ollama
+    container_name: ollama
+    networks:
+      - ai-network
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=http://localhost:*,https://localhost:*,http://127.0.0.1:*,http://0.0.0.0:*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    stop_signal: SIGINT
+  
+  crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile.crawler
+    container_name: crawler
+    networks:
+    - ai-network  
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - MAX_CONCURRENT=3
+      - SITEMAP_URL=${SITEMAP_URL}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD}
+      - HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN} # FIXME: I don't think I need this anymore
+    volumes:
+      - ./app:/app
+    depends_on:
+      ollama:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+            memory: 2G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:11434')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: no
+  
+  model-init:
+    image: curlimages/curl:latest
+    networks:
+      - ai-network
+    volumes:
+      - ./scripts:/scripts
+      - ./.env:/.env
+    entrypoint: ["/bin/sh", "/scripts/init.sh"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    networks:
+      - ai-network
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - HOST=0.0.0.0
+      - PORT=3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: streamlit
+    networks:
+      - ai-network
+    env_file: .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./app:/app
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  ai-network:
+    name: ai-network
+    driver: bridge
+
+volumes:
+  ollama_data:
+    name: ollama_data
+
